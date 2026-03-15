@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRoute, Link } from "wouter";
-import { useGetVenueById, getAudioForVenue } from "@workspace/api-client-react";
+import { useVenueDetail, fetchAudio } from "@/api";
 import { useAppStore } from "@/store/use-app-store";
 import { playAudioTranscript, stopAudioTranscript } from "@/lib/tts";
 import { ArrowLeft, Star, MapPin, Clock, Phone, Globe, Volume2, SquareSquare } from "lucide-react";
@@ -13,7 +13,7 @@ export default function VenueDetail() {
   const { language } = useAppStore();
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const { data: venue, isLoading, error } = useGetVenueById(venueId, { lang: language });
+  const { data: venue, isLoading, error } = useVenueDetail(venueId, language);
 
   useEffect(() => {
     // Cleanup TTS on unmount
@@ -31,7 +31,7 @@ export default function VenueDetail() {
 
     try {
       setIsPlaying(true);
-      const res = await getAudioForVenue(venueId, { lang: language });
+      const res = await fetchAudio(venueId, language);
       if (res.transcript) {
         playAudioTranscript(res.transcript, res.lang);
         // Simple heuristic to toggle button state back, precise 'onend' events from SpeechSynthesis can be buggy across browsers

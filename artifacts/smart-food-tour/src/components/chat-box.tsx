@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useSendChatMessage } from "@workspace/api-client-react";
+import { useSendChat } from "@/api";
 import { MessageCircle, X, Send, Loader2, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore } from "@/store/use-app-store";
@@ -20,7 +20,7 @@ export function ChatBox() {
   const { language, gpsPosition } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const chatMutation = useSendChatMessage();
+  const chatMutation = useSendChat();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -41,12 +41,10 @@ export function ChatBox() {
 
     chatMutation.mutate(
       { 
-        data: { 
-          message: text, 
-          lang: language,
-          userLat: gpsPosition[0],
-          userLng: gpsPosition[1]
-        } 
+        message: text, 
+        lang: language,
+        userLat: gpsPosition[0],
+        userLng: gpsPosition[1]
       },
       {
         onSuccess: (data) => {

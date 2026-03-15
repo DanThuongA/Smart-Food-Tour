@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import { Link } from "wouter";
-import { useGetNearbyVenues, getAudioForVenue } from "@workspace/api-client-react";
+import { useNearbyVenues, fetchAudio } from "@/api";
 import { useAppStore } from "@/store/use-app-store";
 import { playAudioTranscript } from "@/lib/tts";
 import { useToast } from "@/hooks/use-toast";
@@ -61,12 +61,12 @@ export default function MapPage() {
   const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const { data: venues, isLoading } = useGetNearbyVenues({
-    lat: gpsPosition[0],
-    lng: gpsPosition[1],
-    radius: 10000, // Search within 10km to get all city venues
-    lang: language
-  });
+  const { data: venues, isLoading } = useNearbyVenues(
+    gpsPosition[0],
+    gpsPosition[1],
+    10000,
+    language
+  );
 
   // Check for proximity and trigger audio
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function MapPage() {
       });
 
       // Fetch transcript text from audio API and play via TTS
-      getAudioForVenue(venue.id, { lang: language })
+      fetchAudio(venue.id, language)
         .then(res => {
           if (res.transcript) {
             toast({
