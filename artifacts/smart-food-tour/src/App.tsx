@@ -3,10 +3,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-// Pages
 import LanguageSelect from "@/pages/language-select";
 import MapPage from "@/pages/map-page";
 import VenueDetail from "@/pages/venue-detail";
+import AuthPage from "@/pages/auth-page";
+import VendorDashboard from "@/pages/vendor-dashboard";
+import AdminDashboard from "@/pages/admin-dashboard";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -24,6 +26,9 @@ function Router() {
       <Route path="/" component={LanguageSelect} />
       <Route path="/map" component={MapPage} />
       <Route path="/venue/:id" component={VenueDetail} />
+      <Route path="/login" component={AuthPage} />
+      <Route path="/vendor/dashboard" component={VendorDashboard} />
+      <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route component={NotFound} />
     </Switch>
   );

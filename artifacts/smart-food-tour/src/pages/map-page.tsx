@@ -195,8 +195,13 @@ export default function MapPage() {
         </button>
 
         {!sidebarOpen && (
-          <div className="absolute top-6 right-6 z-[1000]">
+          <div className="absolute top-6 right-6 z-[1000] flex items-center gap-2">
             <LanguageSwitcher />
+            <Link href="/login">
+              <span className="bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-colors text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer flex items-center gap-1.5">
+                🏪 Chủ quán / Admin
+              </span>
+            </Link>
           </div>
         )}
 
