@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Smart Food Tour"
+version = "1.0.0"
+id = "artifacts/smart-food-tour"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 23200
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/smart-food-tour run dev"
+
+[services.env]
+PORT = "23200"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/smart-food-tour", "run", "build"]
+publicDir = "artifacts/smart-food-tour/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"

@@ -1,22 +1,28 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Smart Food Tour API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: venues
+    description: Food venue operations
+  - name: languages
+    description: Language and i18n operations
+  - name: chat
+    description: AI Chatbox operations
+  - name: audio
+    description: Audio playback operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +30,171 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /venues:
+    get:
+      operationId: getVenues
+      tags: [venues]
+      summary: Get all food venues
+      parameters:
+        - name: lang
+          in: query
+          schema:
+            type: string
+          description: Language code for content
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by food category
+        - name: lat
+          in: query
+          schema:
+            type: number
+          description: User latitude for distance sorting
+        - name: lng
+          in: query
+          schema:
+            type: number
+          description: User longitude for distance sorting
+      responses:
+        "200":
+          description: List of venues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Venue"
+
+  /venues/{id}:
+    get:
+      operationId: getVenueById
+      tags: [venues]
+      summary: Get venue details by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lang
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Venue details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VenueDetail"
+        "404":
+          description: Venue not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /venues/nearby:
+    get:
+      operationId: getNearbyVenues
+      tags: [venues]
+      summary: Get venues near a location
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: radius
+          in: query
+          schema:
+            type: number
+          description: Radius in meters (default 100)
+        - name: lang
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of nearby venues with distances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NearbyVenue"
+
+  /languages:
+    get:
+      operationId: getLanguages
+      tags: [languages]
+      summary: Get list of supported languages
+      responses:
+        "200":
+          description: Supported languages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Language"
+
+  /chat/message:
+    post:
+      operationId: sendChatMessage
+      tags: [chat]
+      summary: Send a message to the AI chatbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: AI chat response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+
+  /audio/{venueId}:
+    get:
+      operationId: getAudioForVenue
+      tags: [audio]
+      summary: Get audio URL for a venue in a specific language
+      parameters:
+        - name: venueId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lang
+          in: query
+          schema:
+            type: string
+          description: Language code (default en)
+      responses:
+        "200":
+          description: Audio info for venue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudioInfo"
+        "404":
+          description: No audio found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +205,226 @@ components:
       required:
         - status
 
+    Venue:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        nameLocal:
+          type: object
+          additionalProperties:
+            type: string
+        category:
+          type: string
+          enum: [vietnamese, seafood, vegetarian, hotpot, banh-mi, coffee, other]
+        description:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        address:
+          type: string
+        rating:
+          type: number
+        reviewCount:
+          type: integer
+        imageUrl:
+          type: string
+        isOpen:
+          type: boolean
+        audioRadius:
+          type: number
+          description: Trigger radius in meters
+        priceRange:
+          type: string
+          enum: ["$", "$$", "$$$"]
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - category
+        - lat
+        - lng
+        - address
+        - rating
+        - isOpen
+        - audioRadius
+
+    VenueDetail:
+      allOf:
+        - $ref: "#/components/schemas/Venue"
+        - type: object
+          properties:
+            descriptionLocal:
+              type: object
+              additionalProperties:
+                type: string
+            phone:
+              type: string
+            website:
+              type: string
+            hours:
+              type: object
+              additionalProperties:
+                type: string
+            menu:
+              type: array
+              items:
+                $ref: "#/components/schemas/MenuItem"
+            gallery:
+              type: array
+              items:
+                type: string
+            reviews:
+              type: array
+              items:
+                $ref: "#/components/schemas/Review"
+            hasAudio:
+              type: boolean
+            audioLanguages:
+              type: array
+              items:
+                type: string
+
+    NearbyVenue:
+      allOf:
+        - $ref: "#/components/schemas/Venue"
+        - type: object
+          properties:
+            distance:
+              type: number
+              description: Distance in meters
+            withinAudioRadius:
+              type: boolean
+
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        nameLocal:
+          type: object
+          additionalProperties:
+            type: string
+        description:
+          type: string
+        price:
+          type: number
+        imageUrl:
+          type: string
+        isFeatured:
+          type: boolean
+      required:
+        - id
+        - name
+        - price
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+        author:
+          type: string
+        rating:
+          type: number
+        comment:
+          type: string
+        date:
+          type: string
+        lang:
+          type: string
+      required:
+        - id
+        - author
+        - rating
+        - comment
+        - date
+
+    Language:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        nativeName:
+          type: string
+        flag:
+          type: string
+      required:
+        - code
+        - name
+        - nativeName
+        - flag
+
+    ChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        lang:
+          type: string
+        userLat:
+          type: number
+        userLng:
+          type: number
+        context:
+          type: string
+          description: Optional venue context
+      required:
+        - message
+        - lang
+
+    ChatResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+        suggestedVenues:
+          type: array
+          items:
+            $ref: "#/components/schemas/Venue"
+        quickReplies:
+          type: array
+          items:
+            type: string
+      required:
+        - reply
+
+    AudioInfo:
+      type: object
+      properties:
+        venueId:
+          type: string
+        lang:
+          type: string
+        audioUrl:
+          type: string
+        fallbackLang:
+          type: string
+        transcript:
+          type: string
+      required:
+        - venueId
+        - lang
+        - audioUrl
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message

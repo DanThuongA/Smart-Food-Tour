@@ -1,8 +1,8 @@
-# Workspace
+# Smart Food Tour
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+Smart Food Tour — Nền tảng du lịch ẩm thực thông minh. Kết hợp bản đồ tương tác, giả lập GPS bằng click, phát audio giới thiệu quán, hỗ trợ 15 ngôn ngữ và chatbox AI.
 
 ## Stack
 
@@ -10,87 +10,74 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Node.js version**: 24
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
+- **Frontend**: React + Vite (artifacts/smart-food-tour)
+- **Backend**: Express 5 (artifacts/api-server)
+- **Database**: Hardcoded data in artifacts/api-server/src/data/ (no DB needed for now)
+- **Validation**: Zod (`zod/v4`)
 - **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Maps**: React-Leaflet / Leaflet
+- **State**: Zustand
+- **Animations**: Framer Motion
+- **Audio**: Web Speech API (TTS)
+
+## Architecture
+
+### Backend — 3-Layer Architecture
+
+```
+artifacts/api-server/src/
+├── data/          # Data layer — hardcoded venue and language data
+│   ├── venues.ts  # 8 food venues in HCM City with multilingual content
+│   └── languages.ts # 15 supported languages
+├── services/      # Service layer — business logic
+│   ├── venueService.ts  # Venue queries, localization, distance calc
+│   └── chatService.ts   # AI chatbox response logic
+└── routes/        # Route layer — HTTP handlers
+    ├── venues.ts  # GET /api/venues, /api/venues/nearby, /api/venues/:id, /api/audio/:venueId
+    ├── languages.ts # GET /api/languages
+    └── chat.ts    # POST /api/chat/message
+```
+
+### Frontend Pages
+
+- `/` — Language selection (15 languages with flags + search)
+- `/map` — Main map with fake GPS (click to move), audio triggers, venue list sidebar
+- `/venue/:id` — Venue detail with menu, gallery, reviews, play audio button
+- Chatbox — Floating FAB on all pages with quick replies
+
+## Key Features
+
+- **Fake GPS**: Click anywhere on the map to move your simulated location
+- **Auto Audio**: When within audioRadius of a venue, Web Speech API reads the venue transcript
+- **15 Languages**: All content (venue names, descriptions, audio) in selected language
+- **Chatbox**: Keyword-based AI chat responses with venue suggestions
 
 ## Structure
 
 ```text
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
+├── artifacts/
+│   ├── api-server/         # Express API server (port 8080)
+│   └── smart-food-tour/    # React frontend (port 23200, preview at /)
+├── lib/
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+│   └── api-zod/            # Generated Zod schemas from OpenAPI
+├── pnpm-workspace.yaml
+└── tsconfig.json
 ```
 
-## TypeScript & Composite Projects
+## API Endpoints
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+- `GET /api/venues?lang=en&category=vietnamese&lat=10.77&lng=106.70` — All venues
+- `GET /api/venues/nearby?lat=X&lng=Y&radius=100&lang=en` — Nearby venues
+- `GET /api/venues/:id?lang=en` — Venue detail
+- `GET /api/audio/:venueId?lang=en` — Audio transcript for venue
+- `GET /api/languages` — Supported languages list
+- `POST /api/chat/message` — Chat with AI assistant
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+## Running
 
-## Root Scripts
-
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
-
-## Packages
-
-### `artifacts/api-server` (`@workspace/api-server`)
-
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
-
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
-
-### `lib/db` (`@workspace/db`)
-
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
-
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+- Frontend: `pnpm --filter @workspace/smart-food-tour run dev`
+- Backend: `pnpm --filter @workspace/api-server run dev`
+- Codegen: `pnpm --filter @workspace/api-spec run codegen`
