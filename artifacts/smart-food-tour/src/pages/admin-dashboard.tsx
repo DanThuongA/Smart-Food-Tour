@@ -4,8 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, CheckSquare, Store, Users, Map, Bell,
   BarChart2, Settings, LogOut, ShieldCheck, TrendingUp,
-  Volume2, Globe, Eye, Check, X, AlertTriangle, Menu
+  Volume2, Globe, Check, X, AlertTriangle, Menu
 } from "lucide-react";
+import {
+  BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend
+} from "recharts";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -31,6 +36,43 @@ const CAT_LABEL: Record<string, string> = {
   vietnamese: "🍜 Đồ Việt", "banh-mi": "🥖 Bánh Mì", coffee: "☕ Cà Phê",
   hotpot: "🔥 Lẩu", seafood: "🦐 Hải Sản", vegetarian: "🥗 Chay"
 };
+
+const WEEKLY_DATA = [
+  { day: "T2", visits: 520, audio: 210 },
+  { day: "T3", visits: 435, audio: 180 },
+  { day: "T4", visits: 640, audio: 290 },
+  { day: "T5", visits: 510, audio: 220 },
+  { day: "T6", visits: 785, audio: 340 },
+  { day: "T7", visits: 920, audio: 410 },
+  { day: "CN", visits: 710, audio: 305 },
+];
+
+const LANGUAGE_DATA = [
+  { lang: "VI", count: 4523, fill: "#f97316" },
+  { lang: "EN", count: 3201, fill: "#3b82f6" },
+  { lang: "ZH", count: 1893, fill: "#ef4444" },
+  { lang: "JA", count: 987, fill: "#8b5cf6" },
+  { lang: "KO", count: 654, fill: "#10b981" },
+  { lang: "FR", count: 312, fill: "#f59e0b" },
+];
+
+const CATEGORY_DATA = [
+  { name: "🍜 Đồ Việt", value: 32, fill: "#f97316" },
+  { name: "🥖 Bánh Mì", value: 18, fill: "#fb923c" },
+  { name: "☕ Cà Phê", value: 24, fill: "#6b7280" },
+  { name: "🔥 Lẩu", value: 10, fill: "#ef4444" },
+  { name: "🦐 Hải Sản", value: 9, fill: "#3b82f6" },
+  { name: "🥗 Chay", value: 7, fill: "#10b981" },
+];
+
+const MONTHLY_DATA = [
+  { month: "T10", revenue: 12400, users: 820 },
+  { month: "T11", revenue: 15200, users: 1040 },
+  { month: "T12", revenue: 18900, users: 1320 },
+  { month: "T1", revenue: 14300, users: 980 },
+  { month: "T2", revenue: 16800, users: 1150 },
+  { month: "T3", revenue: 21000, users: 1480 },
+];
 
 export default function AdminDashboard() {
   const [, navigate] = useLocation();
@@ -110,7 +152,7 @@ export default function AdminDashboard() {
     </motion.div>
   );
 
-  const Sidebar = () => (
+  const SidebarContent = () => (
     <div className="h-full flex flex-col bg-gray-900 text-white w-64">
       <div className="p-5 border-b border-gray-700">
         <div className="flex items-center gap-2 mb-1">
@@ -144,15 +186,27 @@ export default function AdminDashboard() {
   return (
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex"><Sidebar /></div>
+      <div className="hidden md:flex shrink-0"><SidebarContent /></div>
 
-      {/* Mobile Sidebar */}
-      {sidebarOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 h-full shadow-xl"><Sidebar /></div>
-          <div className="flex-1 bg-black/50" onClick={() => setSidebarOpen(false)} />
-        </div>
-      )}
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="md:hidden fixed inset-0 z-40 bg-black/50"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <motion.div
+              initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }}
+              transition={{ type: "tween", duration: 0.25 }}
+              className="md:hidden fixed left-0 top-0 h-full z-50 shadow-xl"
+            >
+              <SidebarContent />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -177,56 +231,83 @@ export default function AdminDashboard() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="Tổng điểm bán" value={stats?.totalVenues ?? venues.length} icon={Store} color="bg-orange-500" />
-                <StatCard label="Chủ quán" value={stats?.totalVendors} icon={Users} color="bg-blue-500" />
-                <StatCard label="Chờ phê duyệt" value={stats?.pendingApprovals} icon={CheckSquare} color="bg-yellow-500" sub="Cần xem xét" />
-                <StatCard label="Tổng lượt nghe" value={stats?.totalAudioPlays?.toLocaleString()} icon={Volume2} color="bg-green-500" />
+                <StatCard label="Chủ quán" value={stats?.totalVendors ?? 24} icon={Users} color="bg-blue-500" />
+                <StatCard label="Chờ phê duyệt" value={stats?.pendingApprovals ?? 2} icon={CheckSquare} color="bg-yellow-500" sub="Cần xem xét" />
+                <StatCard label="Tổng lượt nghe" value={stats?.totalAudioPlays?.toLocaleString() ?? "12,453"} icon={Volume2} color="bg-green-500" />
               </div>
 
-              {/* Traffic Chart */}
+              {/* Traffic Area Chart */}
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                <h2 className="font-semibold text-gray-700 mb-4">Traffic toàn hệ thống 7 ngày</h2>
-                <div className="flex items-end gap-2 h-36">
-                  {(stats?.weeklyTraffic || [
-                    { day: "T2", visits: 520 }, { day: "T3", visits: 435 }, { day: "T4", visits: 640 },
-                    { day: "T5", visits: 510 }, { day: "T6", visits: 785 }, { day: "T7", visits: 920 }, { day: "CN", visits: 710 }
-                  ]).map((d: any) => {
-                    const max = 1000;
-                    const h = Math.round((d.visits / max) * 100);
-                    return (
-                      <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
-                        <span className="text-xs text-gray-400">{d.visits}</span>
-                        <div className="w-full flex-1 flex items-end">
-                          <div className="w-full bg-blue-400 rounded-t-md hover:bg-blue-500 transition-colors" style={{ height: `${h}%` }} />
-                        </div>
-                        <span className="text-xs text-gray-500">{d.day}</span>
-                      </div>
-                    );
-                  })}
+                <h2 className="font-semibold text-gray-700 mb-1">Traffic & Audio 7 ngày qua</h2>
+                <p className="text-xs text-gray-400 mb-4">Lượt truy cập và lượt nghe audio theo ngày</p>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={WEEKLY_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorAudio" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="day" tick={{ fontSize: 12, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Area type="monotone" dataKey="visits" name="Lượt truy cập" stroke="#3b82f6" strokeWidth={2} fill="url(#colorVisits)" dot={false} />
+                    <Area type="monotone" dataKey="audio" name="Lượt nghe audio" stroke="#f97316" strokeWidth={2} fill="url(#colorAudio)" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Language Bar Chart */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <h2 className="font-semibold text-gray-700 mb-1 flex items-center gap-2"><Globe size={16} />Thống kê ngôn ngữ</h2>
+                  <p className="text-xs text-gray-400 mb-4">Số du khách theo ngôn ngữ sử dụng</p>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={LANGUAGE_DATA} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                      <XAxis dataKey="lang" tick={{ fontSize: 12, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                      <Bar dataKey="count" name="Người dùng" radius={[6, 6, 0, 0]}>
+                        {LANGUAGE_DATA.map((entry, index) => (
+                          <Cell key={index} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-              </div>
 
-              {/* Top languages */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                <h2 className="font-semibold text-gray-700 mb-4 flex items-center gap-2"><Globe size={16} />Thống kê ngôn ngữ</h2>
-                <div className="space-y-2">
-                  {(stats?.topLanguages || [
-                    { lang: "vi", count: 4523 }, { lang: "en", count: 3201 },
-                    { lang: "zh", count: 1893 }, { lang: "ja", count: 987 }, { lang: "ko", count: 654 }
-                  ]).map((item: any, i: number) => {
-                    const flags: Record<string, string> = { vi: "🇻🇳", en: "🇬🇧", zh: "🇨🇳", ja: "🇯🇵", ko: "🇰🇷" };
-                    const total = 11258;
-                    const pct = Math.round((item.count / total) * 100);
-                    return (
-                      <div key={item.lang} className="flex items-center gap-3">
-                        <span className="text-sm w-6">{flags[item.lang] || "🌐"}</span>
-                        <span className="text-xs text-gray-600 w-20 uppercase">{item.lang}</span>
-                        <div className="flex-1 h-2 bg-gray-100 rounded-full">
-                          <div className="h-full bg-blue-400 rounded-full" style={{ width: `${pct}%` }} />
+                {/* Category Pie Chart */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <h2 className="font-semibold text-gray-700 mb-1">Phân loại điểm bán</h2>
+                  <p className="text-xs text-gray-400 mb-2">Tỷ lệ các loại quán trên hệ thống</p>
+                  <div className="flex items-center gap-3">
+                    <ResponsiveContainer width="55%" height={160}>
+                      <PieChart>
+                        <Pie data={CATEGORY_DATA} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value" paddingAngle={2}>
+                          {CATEGORY_DATA.map((entry, index) => (
+                            <Cell key={index} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex-1 space-y-1.5">
+                      {CATEGORY_DATA.map((item) => (
+                        <div key={item.name} className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.fill }} />
+                          <span className="text-xs text-gray-600 flex-1 truncate">{item.name}</span>
+                          <span className="text-xs font-semibold text-gray-700">{item.value}%</span>
                         </div>
-                        <span className="text-xs text-gray-400 w-16 text-right">{item.count.toLocaleString()} ({pct}%)</span>
-                      </div>
-                    );
-                  })}
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -297,9 +378,7 @@ export default function AdminDashboard() {
                         <td className="p-4 font-medium text-gray-800">{v.name}</td>
                         <td className="p-4 text-gray-500 hidden sm:table-cell">{CAT_LABEL[v.category] || v.category}</td>
                         <td className="p-4 text-gray-500 text-xs hidden md:table-cell">{v.address}</td>
-                        <td className="p-4">
-                          <span className="flex items-center gap-1 text-yellow-500">⭐ {v.rating}</span>
-                        </td>
+                        <td className="p-4"><span className="flex items-center gap-1 text-yellow-500">⭐ {v.rating}</span></td>
                         <td className="p-4">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${v.isOpen ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                             {v.isOpen ? "Đang mở" : "Đóng cửa"}
@@ -383,30 +462,64 @@ export default function AdminDashboard() {
 
           {/* === REPORTS === */}
           {tab === "reports" && (
-            <div className="space-y-4">
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { label: "Tổng lượt truy cập tháng này", value: "45,231", trend: "+12% so tháng trước", color: "text-green-600" },
+                  { label: "Tổng lượt nghe audio", value: "12,453", trend: "+8% so tháng trước", color: "text-green-600" },
+                  { label: "Quán nổi bật nhất", value: "Bánh Mì Hội An", trend: "4.9⭐ · 342 lượt", color: "text-orange-500" },
+                ].map((item) => (
+                  <div key={item.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                    <p className="text-xs text-gray-400 mb-1">{item.label}</p>
+                    <p className="font-bold text-gray-800 text-lg">{item.value}</p>
+                    <p className={`text-xs mt-0.5 ${item.color}`}>{item.trend}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Monthly Line Chart */}
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                <h2 className="font-semibold text-gray-700 mb-4 flex items-center gap-2"><BarChart2 size={16} /> Báo cáo tổng hợp</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                  {[
-                    { label: "Tổng lượt truy cập tháng này", value: "45,231", trend: "+12%" },
-                    { label: "Tổng lượt nghe audio", value: "12,453", trend: "+8%" },
-                    { label: "Quán nổi bật nhất", value: "Bánh Mì Hội An", trend: "4.9⭐" },
-                  ].map((item) => (
-                    <div key={item.label} className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-xs text-gray-500 mb-1">{item.label}</p>
-                      <p className="font-bold text-gray-800">{item.value}</p>
-                      <p className="text-xs text-green-600 mt-0.5">{item.trend}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-3">
-                  <button className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-                    📊 Xuất CSV
-                  </button>
-                  <button className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-                    📄 Xuất PDF
-                  </button>
-                </div>
+                <h2 className="font-semibold text-gray-700 mb-1 flex items-center gap-2"><TrendingUp size={16} /> Tăng trưởng 6 tháng</h2>
+                <p className="text-xs text-gray-400 mb-4">Lượt truy cập và người dùng mới theo tháng</p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={MONTHLY_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="revenue" name="Lượt truy cập" stroke="#f97316" strokeWidth={2.5} dot={{ r: 4, fill: "#f97316" }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="users" name="Người dùng mới" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4, fill: "#3b82f6" }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Category Revenue Bar */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <h2 className="font-semibold text-gray-700 mb-1 flex items-center gap-2"><BarChart2 size={16} /> Lượt truy cập theo loại quán</h2>
+                <p className="text-xs text-gray-400 mb-4">So sánh lượt tiếp cận giữa các danh mục</p>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={CATEGORY_DATA} layout="vertical" margin={{ top: 0, right: 20, left: 60, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} width={60} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                    <Bar dataKey="value" name="Tỷ lệ %" radius={[0, 6, 6, 0]}>
+                      {CATEGORY_DATA.map((entry, index) => (
+                        <Cell key={index} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="flex gap-3">
+                <button className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
+                  📊 Xuất CSV
+                </button>
+                <button className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-2 rounded-xl transition-colors">
+                  📄 Xuất PDF
+                </button>
               </div>
             </div>
           )}
@@ -458,19 +571,19 @@ export default function AdminDashboard() {
               </div>
               <p className="text-sm text-gray-600 mb-3">Vui lòng nhập lý do từ chối để thông báo cho Vendor:</p>
               <textarea
-                rows={3} value={rejectModal.reason}
-                onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
-                placeholder="Ví dụ: Thông tin không đầy đủ, ảnh không rõ ràng..."
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                value={rejectModal.reason}
+                onChange={e => setRejectModal({ ...rejectModal, reason: e.target.value })}
+                rows={3} placeholder="VD: Thiếu giấy phép kinh doanh, địa chỉ không hợp lệ..."
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none mb-4"
               />
-              <div className="flex gap-3 mt-4">
-                <button onClick={handleReject}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">
-                  Xác nhận từ chối
-                </button>
+              <div className="flex gap-3">
                 <button onClick={() => setRejectModal(null)}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 rounded-xl text-sm transition-colors">
-                  Hủy
+                  className="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-medium py-2 rounded-xl transition-colors">
+                  Huỷ
+                </button>
+                <button onClick={handleReject}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm font-medium py-2 rounded-xl transition-colors">
+                  Xác nhận từ chối
                 </button>
               </div>
             </motion.div>

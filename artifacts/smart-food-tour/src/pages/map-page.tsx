@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -19,13 +19,12 @@ import {
   MapPin,
   Navigation,
   Star,
-  Volume2,
   ChevronRight,
   Menu,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// --- Leaflet Custom Icons ---
 const userIcon = L.divIcon({
   className: "custom-user-marker",
   html: `<div class="gps-marker-pulse" style="width: 20px; height: 20px;"></div>`,
@@ -55,7 +54,6 @@ const getVenueIcon = (category: string) => {
   });
 };
 
-// Component to handle map clicks and sync GPS
 function MapEvents({
   onLocationClick,
 }: {
@@ -69,7 +67,6 @@ function MapEvents({
   return null;
 }
 
-// Component to recenter map slightly
 function RecenterControl({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
   useEffect(() => {
@@ -87,7 +84,7 @@ export default function MapPage() {
     markVenuePlayed,
   } = useAppStore();
   const { toast } = useToast();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { data: venues, isLoading } = useNearbyVenues(
     gpsPosition[0],
@@ -96,27 +93,18 @@ export default function MapPage() {
     language,
   );
 
-  // Check for proximity and trigger audio
   useEffect(() => {
     if (!venues) return;
-
-    // Find venues within audio radius (backend sets withinAudioRadius based on distance <= audioRadius)
     const nearbyTriggerable = venues.filter(
       (v) => v.withinAudioRadius && !playedVenues.includes(v.id),
     );
-
     if (nearbyTriggerable.length > 0) {
-      const venue = nearbyTriggerable[0]; // Take closest
-
-      // Mark as played immediately so we don't spam
+      const venue = nearbyTriggerable[0];
       markVenuePlayed(venue.id);
-
       toast({
         title: `📍 Near ${venue.name}`,
         description: "Fetching audio guide...",
       });
-
-      // Fetch transcript text from audio API and play via TTS
       fetchAudio(venue.id, language)
         .then((res) => {
           if (res.transcript) {
@@ -133,22 +121,45 @@ export default function MapPage() {
   }, [venues, gpsPosition, playedVenues, markVenuePlayed, language, toast]);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
-      {/* Sidebar */}
-      <AnimatePresence initial={false}>
+    <div className="relative h-screen w-full overflow-hidden bg-background">
+      {/* Sidebar overlay backdrop */}
+      <AnimatePresence>
         {sidebarOpen && (
           <motion.div
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 380, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            className="h-full bg-white shadow-2xl z-20 flex flex-col shrink-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-30 bg-black/30"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar overlay panel */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ x: -400, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -400, opacity: 0 }}
+            transition={{ type: "tween", duration: 0.25 }}
+            className="fixed top-0 left-0 h-full w-[360px] max-w-[90vw] bg-white shadow-2xl z-40 flex flex-col"
           >
-            <div className="p-6 bg-gradient-to-b from-primary/10 to-transparent border-b border-border/50">
+            <div className="p-5 bg-gradient-to-b from-primary/10 to-transparent border-b border-border/50">
               <div className="flex items-center justify-between mb-2">
-                <h1 className="text-2xl font-display font-bold text-foreground">
+                <h1 className="text-xl font-bold text-foreground">
                   Nearby Venues
                 </h1>
-                <LanguageSwitcher />
+                <div className="flex items-center gap-2">
+                  <LanguageSwitcher />
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
               <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                 <Navigation className="w-4 h-4 text-primary" />
@@ -163,11 +174,11 @@ export default function MapPage() {
                     key={i}
                     className="animate-pulse flex gap-4 bg-muted/30 p-3 rounded-2xl"
                   >
-                    <div className="w-20 h-20 bg-muted rounded-xl"></div>
+                    <div className="w-20 h-20 bg-muted rounded-xl" />
                     <div className="flex-1 space-y-2 py-1">
-                      <div className="h-4 bg-muted rounded w-3/4"></div>
-                      <div className="h-3 bg-muted rounded w-1/2"></div>
-                      <div className="h-3 bg-muted rounded w-1/4"></div>
+                      <div className="h-4 bg-muted rounded w-3/4" />
+                      <div className="h-3 bg-muted rounded w-1/2" />
+                      <div className="h-3 bg-muted rounded w-1/4" />
                     </div>
                   </div>
                 ))
@@ -229,85 +240,83 @@ export default function MapPage() {
         )}
       </AnimatePresence>
 
-      {/* Map Area */}
-      <div className="flex-1 relative h-full bg-slate-100">
+      {/* Top controls - always visible */}
+      <div className="absolute top-5 left-5 z-[1000] flex items-center gap-2">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute top-6 left-6 z-[1000] bg-white p-3 rounded-xl shadow-lg border border-border hover:bg-slate-50 transition-colors text-foreground"
+          className="bg-white p-3 rounded-xl shadow-lg border border-border hover:bg-slate-50 transition-colors text-foreground"
         >
           <Menu className="w-5 h-5" />
         </button>
+      </div>
 
-        {!sidebarOpen && (
-          <div className="absolute top-6 right-6 z-[1000] flex items-center gap-2">
-            <LanguageSwitcher />
-            <Link href="/login">
-              <span className="bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-colors text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer flex items-center gap-1.5">
-                🏪 Chủ quán / Admin
-              </span>
-            </Link>
-          </div>
-        )}
+      <div className="absolute top-5 right-5 z-[1000] flex items-center gap-2">
+        <LanguageSwitcher />
+        <Link href="/login">
+          <span className="bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-colors text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer flex items-center gap-1.5">
+            🏪 Chủ quán / Admin
+          </span>
+        </Link>
+      </div>
 
-        <MapContainer
-          center={gpsPosition}
-          zoom={15}
-          className="w-full h-full"
-          zoomControl={false}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          />
+      {/* Map always full width */}
+      <MapContainer
+        center={gpsPosition}
+        zoom={15}
+        className="w-full h-full"
+        zoomControl={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        />
 
-          <MapEvents onLocationClick={setGpsPosition} />
+        <MapEvents onLocationClick={setGpsPosition} />
+        <RecenterControl lat={gpsPosition[0]} lng={gpsPosition[1]} />
 
-          {/* Fake GPS User Marker */}
-          <Marker position={gpsPosition} icon={userIcon}>
+        <Marker position={gpsPosition} icon={userIcon}>
+          <Popup>
+            <div className="font-semibold text-center pb-1">You are here</div>
+            <div className="text-xs text-muted-foreground text-center">
+              Click anywhere to move
+            </div>
+          </Popup>
+        </Marker>
+
+        {venues?.map((venue) => (
+          <Marker
+            key={venue.id}
+            position={[venue.lat, venue.lng]}
+            icon={getVenueIcon(venue.category)}
+          >
             <Popup>
-              <div className="font-semibold text-center pb-1">You are here</div>
-              <div className="text-xs text-muted-foreground text-center">
-                Click anywhere to move
+              <div className="w-48 pb-1">
+                <div className="h-24 -mt-4 -mx-4 mb-3 overflow-hidden">
+                  <img
+                    src={venue.imageUrl}
+                    alt={venue.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <h3 className="font-bold text-sm mb-1">{venue.name}</h3>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
+                  <MapPin className="w-3 h-3" />
+                  <span>
+                    {venue.distance
+                      ? `${Math.round(venue.distance)}m away`
+                      : venue.address}
+                  </span>
+                </div>
+                <Link href={`/venue/${venue.id}`}>
+                  <button className="w-full py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+                    View Details
+                  </button>
+                </Link>
               </div>
             </Popup>
           </Marker>
-
-          {/* Venue Markers */}
-          {venues?.map((venue) => (
-            <Marker
-              key={venue.id}
-              position={[venue.lat, venue.lng]}
-              icon={getVenueIcon(venue.category)}
-            >
-              <Popup>
-                <div className="w-48 pb-1">
-                  <div className="h-24 -mt-4 -mx-4 mb-3 overflow-hidden">
-                    <img
-                      src={venue.imageUrl}
-                      alt={venue.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <h3 className="font-bold text-sm mb-1">{venue.name}</h3>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
-                    <MapPin className="w-3 h-3" />
-                    <span>
-                      {venue.distance
-                        ? `${Math.round(venue.distance)}m away`
-                        : venue.address}
-                    </span>
-                  </div>
-                  <Link href={`/venue/${venue.id}`}>
-                    <button className="w-full py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-                      View Details
-                    </button>
-                  </Link>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MapContainer>
-      </div>
+        ))}
+      </MapContainer>
 
       <ChatBox />
     </div>
