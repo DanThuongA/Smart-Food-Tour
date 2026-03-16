@@ -3,33 +3,50 @@ import { venues } from "../data/venues.js";
 
 const router: IRouter = Router();
 
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+// Tính khoảng cách đường chim bay (mét) giữa 2 tọa độ GPS.
+function haversine(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
   const R = 6371000;
   const p1 = (lat1 * Math.PI) / 180;
   const p2 = (lat2 * Math.PI) / 180;
   const dp = ((lat2 - lat1) * Math.PI) / 180;
   const dl = ((lng2 - lng1) * Math.PI) / 180;
-  const a = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  const a =
+    Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function localize(venue: typeof venues[0], lang: string) {
+// Localize các trường hiển thị theo ngôn ngữ, có fallback sang en.
+function localize(venue: (typeof venues)[0], lang: string) {
   const nameLocal = venue.nameLocal as Record<string, string>;
   const descriptionLocal = venue.descriptionLocal as Record<string, string>;
   const name = nameLocal[lang] || nameLocal["en"] || venue.name;
-  const description = descriptionLocal[lang] || descriptionLocal["en"] || venue.description;
+  const description =
+    descriptionLocal[lang] || descriptionLocal["en"] || venue.description;
   const menu = venue.menu.map((item) => {
     const itemNameLocal = item.nameLocal as Record<string, string>;
-    return { ...item, name: itemNameLocal[lang] || itemNameLocal["en"] || item.name };
+    return { 
+
+      
+      ...item,
+      name: itemNameLocal[lang] || itemNameLocal["en"] || item.name,
+    };
   });
   return { ...venue, name, description, menu };
 }
 
 // GET /api/venues/nearby
 router.get("/venues/nearby", (req, res) => {
+  // Frontend truyền vị trí hiện tại + bán kính tìm kiếm (mặc định 100m).
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
-  const radius = req.query.radius ? parseFloat(req.query.radius as string) : 100;
+  const radius = req.query.radius
+    ? parseFloat(req.query.radius as string)
+    : 100;
   const lang = (req.query.lang as string) || "en";
 
   if (isNaN(lat) || isNaN(lng)) {
@@ -53,9 +70,11 @@ router.get("/venues/nearby", (req, res) => {
         isOpen: loc.isOpen,
         priceRange: loc.priceRange,
         distance: Math.round(distance),
+        // Dùng để frontend tự phát audio khi user đứng đủ gần.
         withinAudioRadius: distance <= v.audioRadius,
       };
     })
+    // Giữ venue trong bán kính yêu cầu và sắp xếp gần -> xa.
     .filter((v) => v.distance <= radius)
     .sort((a, b) => a.distance - b.distance);
 
@@ -73,6 +92,7 @@ router.get("/venues/:id", (req, res) => {
   }
 
   const loc = localize(venue, lang);
+  // Trả payload chi tiết cho trang venue detail.
   res.json({
     ...loc,
     hours: venue.hours,
@@ -88,22 +108,25 @@ router.get("/venues", (req, res) => {
   const lang = (req.query.lang as string) || "en";
   const category = req.query.category as string | undefined;
 
+  // Danh sách rút gọn để hiển thị list/card.
   let result = venues.map((v) => localize(v, lang));
   if (category) result = result.filter((v) => v.category === category);
 
-  res.json(result.map((v) => ({
-    id: v.id,
-    name: v.name,
-    category: v.category,
-    lat: v.lat,
-    lng: v.lng,
-    address: v.address,
-    rating: v.rating,
-    imageUrl: v.imageUrl,
-    isOpen: v.isOpen,
-    priceRange: v.priceRange,
-    tags: v.tags,
-  })));
+  res.json(
+    result.map((v) => ({
+      id: v.id,
+      name: v.name,
+      category: v.category,
+      lat: v.lat,
+      lng: v.lng,
+      address: v.address,
+      rating: v.rating,
+      imageUrl: v.imageUrl,
+      isOpen: v.isOpen,
+      priceRange: v.priceRange,
+      tags: v.tags,
+    })),
+  );
 });
 
 // GET /api/audio/:venueId
@@ -116,7 +139,11 @@ router.get("/audio/:venueId", (req, res) => {
     return;
   }
 
-  const transcripts = venue.audioTranscripts as Record<string, string>;
+  // Ưu tiên ngôn ngữ được yêu cầu, fallback về en nếu không có.
+  const transcripts = venue.audioTranscripts as unknown as Record<
+    string,
+    string
+  >;
   const transcript = transcripts[lang] || transcripts["en"];
   const actualLang = transcripts[lang] ? lang : "en";
 

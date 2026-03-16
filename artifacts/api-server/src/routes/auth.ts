@@ -4,54 +4,73 @@ import { venues } from "../data/venues.js";
 
 const router: IRouter = Router();
 
-// Login
+// Đăng nhập bằng dữ liệu mock trong bộ nhớ.
 router.post("/auth/login", (req, res) => {
   const { email, password } = req.body;
   const user = users.find((u) => u.email === email && u.password === password);
 
   if (!user) {
-    res.status(401).json({ error: "unauthorized", message: "Invalid credentials" });
+    res
+      .status(401)
+      .json({ error: "unauthorized", message: "Invalid credentials" });
     return;
   }
 
+  // Loại bỏ password trước khi trả về cho client.
   const { password: _, ...safeUser } = user;
   res.json({ user: safeUser, token: `fake-token-${user.id}` });
 });
 
-// Register vendor
+// Đăng ký tài khoản vendor mới (trạng thái chờ duyệt).
 router.post("/auth/register", (req, res) => {
   const { email, password, name, phone, shopName } = req.body;
   if (!email || !password || !name) {
-    res.status(400).json({ error: "bad_request", message: "email, password and name required" });
+    res
+      .status(400)
+      .json({
+        error: "bad_request",
+        message: "email, password and name required",
+      });
     return;
   }
   if (users.find((u) => u.email === email)) {
-    res.status(409).json({ error: "conflict", message: "Email already registered" });
+    res
+      .status(409)
+      .json({ error: "conflict", message: "Email already registered" });
     return;
   }
 
   const newUser = {
     id: `u${Date.now()}`,
-    email, password, name, phone, shopName,
+    email,
+    password,
+    name,
+    phone,
+    shopName,
     role: "vendor" as const,
     status: "pending" as const,
-    createdAt: new Date().toISOString().split("T")[0]
+    createdAt: new Date().toISOString().split("T")[0],
   };
+  // Lưu trực tiếp vào mảng mock, không ghi xuống DB.
   users.push(newUser);
   const { password: _, ...safeUser } = newUser;
   res.status(201).json({ user: safeUser, token: `fake-token-${newUser.id}` });
 });
 
-// Vendor dashboard stats
+// Số liệu dashboard vendor (giả lập).
 router.get("/vendor/stats", (req, res) => {
   const vendorEmail = req.headers["x-vendor-email"] as string;
-  const user = users.find((u) => u.email === vendorEmail && u.role === "vendor");
+  const user = users.find(
+    (u) => u.email === vendorEmail && u.role === "vendor",
+  );
   if (!user) {
-    res.status(401).json({ error: "unauthorized", message: "Vendor auth required" });
+    res
+      .status(401)
+      .json({ error: "unauthorized", message: "Vendor auth required" });
     return;
   }
 
-  // Fake stats
+  // Trả dữ liệu thống kê random để demo giao diện.
   res.json({
     weeklyVisits: Math.floor(Math.random() * 800) + 200,
     audioPlays: Math.floor(Math.random() * 500) + 100,
@@ -63,12 +82,12 @@ router.get("/vendor/stats", (req, res) => {
       { day: "Thu", visits: 110 },
       { day: "Fri", visits: 185 },
       { day: "Sat", visits: 220 },
-      { day: "Sun", visits: 160 }
-    ]
+      { day: "Sun", visits: 160 },
+    ],
   });
 });
 
-// Vendor venues list
+// Danh sách venue của vendor (lọc theo tên shop).
 router.get("/vendor/venues", (req, res) => {
   const vendorEmail = req.headers["x-vendor-email"] as string;
   const user = users.find((u) => u.email === vendorEmail);
@@ -78,12 +97,14 @@ router.get("/vendor/venues", (req, res) => {
   }
 
   const vendorVenues = venues.filter((v) =>
-    v.name.toLowerCase().includes(user.shopName?.toLowerCase().split(" ")[0] ?? "")
+    v.name
+      .toLowerCase()
+      .includes(user.shopName?.toLowerCase().split(" ")[0] ?? ""),
   );
   res.json(vendorVenues);
 });
 
-// Admin: all users
+// Admin: lấy toàn bộ user (đã ẩn password).
 router.get("/admin/users", (req, res) => {
   const adminEmail = req.headers["x-admin-email"] as string;
   const admin = users.find((u) => u.email === adminEmail && u.role === "admin");
@@ -94,7 +115,7 @@ router.get("/admin/users", (req, res) => {
   res.json(users.map(({ password: _, ...u }) => u));
 });
 
-// Admin: pending approvals
+// Admin: danh sách venue đang chờ duyệt.
 router.get("/admin/pending", (req, res) => {
   const adminEmail = req.headers["x-admin-email"] as string;
   const admin = users.find((u) => u.email === adminEmail && u.role === "admin");
@@ -105,7 +126,7 @@ router.get("/admin/pending", (req, res) => {
   res.json(pendingVenues);
 });
 
-// Admin: approve or reject venue
+// Admin: duyệt hoặc từ chối venue đăng ký.
 router.patch("/admin/pending/:id", (req, res) => {
   const adminEmail = req.headers["x-admin-email"] as string;
   const admin = users.find((u) => u.email === adminEmail && u.role === "admin");
@@ -116,7 +137,9 @@ router.patch("/admin/pending/:id", (req, res) => {
 
   const pv = pendingVenues.find((p) => p.id === req.params.id);
   if (!pv) {
-    res.status(404).json({ error: "not_found", message: "Pending venue not found" });
+    res
+      .status(404)
+      .json({ error: "not_found", message: "Pending venue not found" });
     return;
   }
 
@@ -130,7 +153,7 @@ router.patch("/admin/pending/:id", (req, res) => {
   res.json(pv);
 });
 
-// Admin: all venues
+// Admin: lấy toàn bộ venue hiện có.
 router.get("/admin/venues", (req, res) => {
   const adminEmail = req.headers["x-admin-email"] as string;
   const admin = users.find((u) => u.email === adminEmail && u.role === "admin");
@@ -141,7 +164,7 @@ router.get("/admin/venues", (req, res) => {
   res.json(venues);
 });
 
-// Admin: dashboard stats
+// Admin: thống kê tổng quan hệ thống (giả lập).
 router.get("/admin/stats", (req, res) => {
   const adminEmail = req.headers["x-admin-email"] as string;
   const admin = users.find((u) => u.email === adminEmail && u.role === "admin");
@@ -152,14 +175,15 @@ router.get("/admin/stats", (req, res) => {
   res.json({
     totalVenues: venues.length,
     totalVendors: users.filter((u) => u.role === "vendor").length,
-    pendingApprovals: pendingVenues.filter((p) => p.status === "pending").length,
+    pendingApprovals: pendingVenues.filter((p) => p.status === "pending")
+      .length,
     totalAudioPlays: 12453,
     topLanguages: [
       { lang: "vi", count: 4523 },
       { lang: "en", count: 3201 },
       { lang: "zh", count: 1893 },
       { lang: "ja", count: 987 },
-      { lang: "ko", count: 654 }
+      { lang: "ko", count: 654 },
     ],
     weeklyTraffic: [
       { day: "Mon", visits: 520 },
@@ -168,12 +192,12 @@ router.get("/admin/stats", (req, res) => {
       { day: "Thu", visits: 510 },
       { day: "Fri", visits: 785 },
       { day: "Sat", visits: 920 },
-      { day: "Sun", visits: 710 }
-    ]
+      { day: "Sun", visits: 710 },
+    ],
   });
 });
 
-// Admin: toggle user status
+// Admin: cập nhật trạng thái user (active/pending/blocked...).
 router.patch("/admin/users/:id/status", (req, res) => {
   const adminEmail = req.headers["x-admin-email"] as string;
   const admin = users.find((u) => u.email === adminEmail && u.role === "admin");

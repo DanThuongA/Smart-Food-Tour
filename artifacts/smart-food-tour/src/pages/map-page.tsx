@@ -1,5 +1,12 @@
 import { useEffect, useState, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMapEvents,
+  useMap,
+} from "react-leaflet";
 import L from "leaflet";
 import { Link } from "wouter";
 import { useNearbyVenues, fetchAudio } from "@/api";
@@ -8,37 +15,52 @@ import { playAudioTranscript } from "@/lib/tts";
 import { useToast } from "@/hooks/use-toast";
 import { ChatBox } from "@/components/chat-box";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { MapPin, Navigation, Star, Volume2, ChevronRight, Menu } from "lucide-react";
+import {
+  MapPin,
+  Navigation,
+  Star,
+  Volume2,
+  ChevronRight,
+  Menu,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // --- Leaflet Custom Icons ---
 const userIcon = L.divIcon({
-  className: 'custom-user-marker',
+  className: "custom-user-marker",
   html: `<div class="gps-marker-pulse" style="width: 20px; height: 20px;"></div>`,
   iconSize: [20, 20],
-  iconAnchor: [10, 10]
+  iconAnchor: [10, 10],
 });
 
 const getCategoryEmoji = (cat: string) => {
   const map: Record<string, string> = {
-    vietnamese: '🍜', 'banh-mi': '🥖', coffee: '☕',
-    hotpot: '🔥', seafood: '🦐', vegetarian: '🥗'
+    vietnamese: "🍜",
+    "banh-mi": "🥖",
+    coffee: "☕",
+    hotpot: "🔥",
+    seafood: "🦐",
+    vegetarian: "🥗",
   };
-  return map[cat] || '🍽️';
+  return map[cat] || "🍽️";
 };
 
 const getVenueIcon = (category: string) => {
   return L.divIcon({
-    className: 'custom-venue-marker',
+    className: "custom-venue-marker",
     html: `<div class="venue-marker" style="width: 36px; height: 36px;">${getCategoryEmoji(category)}</div>`,
     iconSize: [36, 36],
     iconAnchor: [18, 18],
-    popupAnchor: [0, -18]
+    popupAnchor: [0, -18],
   });
 };
 
 // Component to handle map clicks and sync GPS
-function MapEvents({ onLocationClick }: { onLocationClick: (lat: number, lng: number) => void }) {
+function MapEvents({
+  onLocationClick,
+}: {
+  onLocationClick: (lat: number, lng: number) => void;
+}) {
   useMapEvents({
     click(e) {
       onLocationClick(e.latlng.lat, e.latlng.lng);
@@ -48,7 +70,7 @@ function MapEvents({ onLocationClick }: { onLocationClick: (lat: number, lng: nu
 }
 
 // Component to recenter map slightly
-function RecenterControl({ lat, lng }: { lat: number, lng: number }) {
+function RecenterControl({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
   useEffect(() => {
     map.flyTo([lat, lng], map.getZoom());
@@ -57,7 +79,13 @@ function RecenterControl({ lat, lng }: { lat: number, lng: number }) {
 }
 
 export default function MapPage() {
-  const { language, gpsPosition, setGpsPosition, playedVenues, markVenuePlayed } = useAppStore();
+  const {
+    language,
+    gpsPosition,
+    setGpsPosition,
+    playedVenues,
+    markVenuePlayed,
+  } = useAppStore();
   const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -65,22 +93,24 @@ export default function MapPage() {
     gpsPosition[0],
     gpsPosition[1],
     10000,
-    language
+    language,
   );
 
   // Check for proximity and trigger audio
   useEffect(() => {
     if (!venues) return;
-    
+
     // Find venues within audio radius (backend sets withinAudioRadius based on distance <= audioRadius)
-    const nearbyTriggerable = venues.filter(v => v.withinAudioRadius && !playedVenues.includes(v.id));
-    
+    const nearbyTriggerable = venues.filter(
+      (v) => v.withinAudioRadius && !playedVenues.includes(v.id),
+    );
+
     if (nearbyTriggerable.length > 0) {
       const venue = nearbyTriggerable[0]; // Take closest
-      
+
       // Mark as played immediately so we don't spam
       markVenuePlayed(venue.id);
-      
+
       toast({
         title: `📍 Near ${venue.name}`,
         description: "Fetching audio guide...",
@@ -88,7 +118,7 @@ export default function MapPage() {
 
       // Fetch transcript text from audio API and play via TTS
       fetchAudio(venue.id, language)
-        .then(res => {
+        .then((res) => {
           if (res.transcript) {
             toast({
               title: `🔊 Playing guide: ${venue.name}`,
@@ -98,7 +128,7 @@ export default function MapPage() {
             playAudioTranscript(res.transcript, res.lang);
           }
         })
-        .catch(err => console.error("Audio fetch error:", err));
+        .catch((err) => console.error("Audio fetch error:", err));
     }
   }, [venues, gpsPosition, playedVenues, markVenuePlayed, language, toast]);
 
@@ -107,7 +137,7 @@ export default function MapPage() {
       {/* Sidebar */}
       <AnimatePresence initial={false}>
         {sidebarOpen && (
-          <motion.div 
+          <motion.div
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 380, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
@@ -115,7 +145,9 @@ export default function MapPage() {
           >
             <div className="p-6 bg-gradient-to-b from-primary/10 to-transparent border-b border-border/50">
               <div className="flex items-center justify-between mb-2">
-                <h1 className="text-2xl font-display font-bold text-foreground">Nearby Venues</h1>
+                <h1 className="text-2xl font-display font-bold text-foreground">
+                  Nearby Venues
+                </h1>
                 <LanguageSwitcher />
               </div>
               <p className="text-sm text-muted-foreground flex items-center gap-1.5">
@@ -126,8 +158,11 @@ export default function MapPage() {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
               {isLoading ? (
-                [1, 2, 3, 4].map(i => (
-                  <div key={i} className="animate-pulse flex gap-4 bg-muted/30 p-3 rounded-2xl">
+                [1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="animate-pulse flex gap-4 bg-muted/30 p-3 rounded-2xl"
+                  >
                     <div className="w-20 h-20 bg-muted rounded-xl"></div>
                     <div className="flex-1 space-y-2 py-1">
                       <div className="h-4 bg-muted rounded w-3/4"></div>
@@ -145,16 +180,19 @@ export default function MapPage() {
                   <Link href={`/venue/${venue.id}`} key={venue.id}>
                     <div className="group bg-white border border-border/50 hover:border-primary/40 rounded-2xl p-3 flex gap-4 cursor-pointer hover:shadow-lg transition-all duration-300">
                       <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 relative">
-                        <img 
-                          src={venue.imageUrl || `https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=80`} 
-                          alt={venue.name} 
+                        <img
+                          src={
+                            venue.imageUrl ||
+                            `https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=80`
+                          }
+                          alt={venue.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />
                         <div className="absolute top-1 left-1 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-md text-xs font-bold shadow-sm">
                           {getCategoryEmoji(venue.category)}
                         </div>
                       </div>
-                      
+
                       <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                         <div>
                           <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
@@ -165,13 +203,19 @@ export default function MapPage() {
                               <Star className="w-3.5 h-3.5 fill-current" />
                               {venue.rating}
                             </span>
-                            <span className="truncate flex-1">{venue.category}</span>
+                            <span className="truncate flex-1">
+                              {venue.category}
+                            </span>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center justify-between mt-2">
-                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${venue.distance && venue.distance < 100 ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
-                            {venue.distance ? `${Math.round(venue.distance)}m away` : ''}
+                          <span
+                            className={`text-xs font-medium px-2 py-1 rounded-full ${venue.distance && venue.distance < 100 ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}
+                          >
+                            {venue.distance
+                              ? `${Math.round(venue.distance)}m away`
+                              : ""}
                           </span>
                           <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                         </div>
@@ -187,7 +231,7 @@ export default function MapPage() {
 
       {/* Map Area */}
       <div className="flex-1 relative h-full bg-slate-100">
-        <button 
+        <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="absolute top-6 left-6 z-[1000] bg-white p-3 rounded-xl shadow-lg border border-border hover:bg-slate-50 transition-colors text-foreground"
         >
@@ -205,9 +249,9 @@ export default function MapPage() {
           </div>
         )}
 
-        <MapContainer 
-          center={gpsPosition} 
-          zoom={15} 
+        <MapContainer
+          center={gpsPosition}
+          zoom={15}
           className="w-full h-full"
           zoomControl={false}
         >
@@ -215,33 +259,43 @@ export default function MapPage() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           />
-          
+
           <MapEvents onLocationClick={setGpsPosition} />
-          
+
           {/* Fake GPS User Marker */}
           <Marker position={gpsPosition} icon={userIcon}>
             <Popup>
               <div className="font-semibold text-center pb-1">You are here</div>
-              <div className="text-xs text-muted-foreground text-center">Click anywhere to move</div>
+              <div className="text-xs text-muted-foreground text-center">
+                Click anywhere to move
+              </div>
             </Popup>
           </Marker>
 
           {/* Venue Markers */}
           {venues?.map((venue) => (
-            <Marker 
-              key={venue.id} 
-              position={[venue.lat, venue.lng]} 
+            <Marker
+              key={venue.id}
+              position={[venue.lat, venue.lng]}
               icon={getVenueIcon(venue.category)}
             >
               <Popup>
                 <div className="w-48 pb-1">
                   <div className="h-24 -mt-4 -mx-4 mb-3 overflow-hidden">
-                    <img src={venue.imageUrl} alt={venue.name} className="w-full h-full object-cover" />
+                    <img
+                      src={venue.imageUrl}
+                      alt={venue.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <h3 className="font-bold text-sm mb-1">{venue.name}</h3>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
                     <MapPin className="w-3 h-3" />
-                    <span>{venue.distance ? `${Math.round(venue.distance)}m away` : venue.address}</span>
+                    <span>
+                      {venue.distance
+                        ? `${Math.round(venue.distance)}m away`
+                        : venue.address}
+                    </span>
                   </div>
                   <Link href={`/venue/${venue.id}`}>
                     <button className="w-full py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors">
