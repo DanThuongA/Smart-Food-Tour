@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  RadialBarChart, RadialBar,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend
 } from "recharts";
