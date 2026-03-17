@@ -4,9 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx ./src/dev.ts",
-    "build": "tsx ./build.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "dev": "tsx ./src/dev.js"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
